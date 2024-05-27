@@ -1,0 +1,444 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = "native"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+
+model User {
+  id         String  @id @default(uuid())
+  uid        String  @default(uuid())
+  first_name String
+  last_name  String?
+
+  email         String @unique
+  mobile_number String @unique
+
+  password String?
+  roles    UserRole[] @relation("UserRoleToUser")
+  is_admin Boolean    @default(false)
+
+  provider Provider  @default(credentials)
+  address  Address[]
+  orders   Order[]
+
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  permissions         Permission[]          @relation("PermissionToUser")
+  ProductQA           ProductQA[]
+  ProductReview       ProductReview[]
+  UserPersonalDetails UserPersonalDetails[]
+
+  UserRole UserRole[]
+
+  // change name
+  @@map("user")
+}
+
+// Personal Information
+model UserPersonalDetails {
+  id             String         @id @default(uuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id])
+  image          String?
+  gender         Gender? //enum
+  marital_status MaritalStatus? //enum
+  date_of_birth  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // change name
+  @@map("user_personal_details")
+}
+
+// address
+model Address {
+  id               String  @id @default(uuid())
+  userId           String
+  user             User    @relation(fields: [userId], references: [id])
+  address_line_one String
+  address_line_two String?
+  area             String?
+  thana            String
+  district         String
+  zip_code         String?
+  is_default       Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Order     Order[]
+
+  // change name
+  @@map("address")
+}
+
+// category
+model Category {
+  id          String     @id @default(uuid())
+  name        String
+  description String     @db.Text
+  image       String?
+  slug        String     @unique
+  parent_id   String?
+  parent      Category?  @relation("CategoryToCategory", fields: [parent_id], references: [id])
+  children    Category[] @relation("CategoryToCategory")
+  is_active   Boolean    @default(true)
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  ProductCategory ProductCategory[]
+  Order           Order[]
+
+  @@map("category")
+}
+
+// product
+model Product {
+  id            String  @id @default(uuid())
+  name          String
+  specification String  @db.Text
+  key_features  String  @db.Text
+  description   String? @db.Text
+
+  images      ProductImage[] //gallery image id list
+  thumbnailId Int //gallery image id
+  thumbnail   Gallery        @relation(fields: [thumbnailId], references: [id])
+
+  selling_price Float
+  regular_price Float
+  special_price Float?
+  stock         Int     @default(0)
+  slug          String  @unique
+  is_active     Boolean @default(true)
+  unit          String
+  weight        Float?
+  // outlet
+
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  Brand            Brand?             @relation(fields: [brandId], references: [id])
+  brandId          String? //brand id
+  outlet           Outlet[]
+  productQA        ProductQA[]
+  productReview    ProductReview[]
+  productCategory  ProductCategory[]
+  productAttribute ProductAttribute[]
+
+  // change name
+  @@map("product")
+}
+
+model ProductImage {
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  imageId   Int
+  image     Gallery @relation(fields: [imageId], references: [id])
+
+  @@id([productId, imageId])
+}
+
+// product Media
+
+// Product Category => product and category many to many Relationship
+model ProductCategory {
+  id        String @id @default(uuid())
+  productId String
+
+  product    Product  @relation(fields: [productId], references: [id])
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  // change name
+  @@map("product_category")
+}
+
+// outlet
+model Outlet {
+  id        String   @id @default(uuid())
+  name      String
+  address   String
+  phone     String
+  email     String
+  is_active Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Product   Product? @relation(fields: [productId], references: [id])
+  productId String?
+
+  // change name
+  @@map("outlet")
+}
+
+// attribute
+
+model Attribute {
+  id               String             @id @default(uuid())
+  name             String
+  is_active        Boolean            @default(true)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  AttributeValue   AttributeValue[]
+  ProductAttribute ProductAttribute[]
+
+  // change name
+  @@map("attribute")
+}
+
+// attribute value
+model AttributeValue {
+  id               String             @id @default(uuid())
+  attributeId      String
+  attribute        Attribute          @relation(fields: [attributeId], references: [id])
+  value            String
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  ProductAttribute ProductAttribute[]
+
+  // change name
+  @@map("attribute_value")
+}
+
+// product attribute
+
+model ProductAttribute {
+  id               String         @id @default(uuid())
+  productId        String
+  product          Product        @relation(fields: [productId], references: [id])
+  attributeId      String
+  attribute        Attribute      @relation(fields: [attributeId], references: [id])
+  attributeValueId String
+  attributeValue   AttributeValue @relation(fields: [attributeValueId], references: [id])
+
+  // change name
+  @@map("product_attribute")
+}
+
+// order
+model Order {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  addressId  String
+  address    Address   @relation(fields: [addressId], references: [id])
+  total      Float
+  status     String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  Category   Category? @relation(fields: [categoryId], references: [id])
+  categoryId String?
+
+  // change name
+  @@map("order")
+}
+
+// brand
+
+model Brand {
+  id          String    @id @default(uuid())
+  name        String
+  description String    @db.Text
+  image       String?
+  is_active   Boolean   @default(true)
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // change name
+  @@map("brand")
+}
+
+// Product Q&A
+model ProductQA {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  question  String
+  answer    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // change name
+  @@map("product_qa")
+}
+
+// Product Review
+model ProductReview {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  rating    Int
+  review    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // change name
+  @@map("product_review")
+}
+
+// Blog Management
+model Blog {
+  id          String   @id @default(uuid())
+  title       String
+  description String   @db.Text
+  image       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  is_active   Boolean  @default(true)
+
+  BlogCategory   BlogCategory @relation(fields: [blogCategoryId], references: [id])
+  blogCategoryId String
+
+  // change name
+  @@map("blog")
+}
+
+// Blog Category
+model BlogCategory {
+  id        String   @id @default(uuid())
+  name      String
+  blogs     Blog[]
+  is_active Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // change name
+  @@map("blog_category")
+}
+
+// FAQ
+model FAQ {
+  id        String   @id @default(uuid())
+  question  String
+  answer    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // change name
+  @@map("faq")
+}
+
+// Contact
+
+model Contact {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  subject   String
+  message   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // change name
+  @@map("contact")
+}
+
+// permission group
+
+model PermissionGroup {
+  id         String       @id @default(uuid())
+  name       String       @unique
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  permission Permission[]
+
+  // change name
+  @@map("permission_group")
+}
+
+// permission 
+
+model Permission {
+  id        String          @id @default(uuid())
+  name      String          @unique
+  group_id  String
+  group     PermissionGroup @relation(fields: [group_id], references: [id])
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  roles     UserRole[]      @relation("UserRoleToPermission")
+  users     User[]          @relation("PermissionToUser")
+
+  userRoleId String?
+
+  // change name
+  @@map("permission")
+}
+
+// roles
+
+model UserRole {
+  id   String @id @default(uuid())
+  name String @unique
+
+  permissions Permission[] @relation("UserRoleToPermission")
+  users       User[]       @relation("UserRoleToUser")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  User      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+
+  // change name
+  @@map("role")
+}
+
+model Gallery {
+  id           Int            @id @default(autoincrement())
+  image        String
+  Product      Product[]
+  ProductImage ProductImage[]
+  Service Service[]
+
+
+}
+
+
+model Service {
+    id            String          @id @default(uuid())
+    title         String
+    description   String          @db.Text
+    imageId       Int
+
+    image         Gallery         @relation(fields:[imageId], references:[id])
+
+    @@map("service")
+}
+
+
+
+
+
+enum Role {
+  user
+  admin
+}
+
+enum Provider {
+  credentials
+  google
+  facebook
+}
+
+// gender
+enum Gender {
+  male
+  female
+  other
+}
+
+// marital_status
+enum MaritalStatus {
+  unmarried
+  married
+  divorced
+  widowed
+}
